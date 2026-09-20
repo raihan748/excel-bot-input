@@ -1,0 +1,71 @@
+/* Tab Navigation Styles */
+.tab-active {
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.tab-inactive {
+  border-color: transparent;
+  color: #64748b;
+}
+
+.tab-inactive:hover {
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+/* Preset Buttons */
+.active-preset {
+  border-color: #059669 !important;
+  background-color: #ecfdf5 !important;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
+}
+
+/* Spreadsheet Table Styling */
+#liveTable th {
+  padding: 10px 14px;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  border: 1px solid #1d4ed8;
+  white-space: nowrap;
+}
+
+#liveTable td {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+  outline: none;
+  transition: background-color 0.15s ease;
+}
+
+#liveTable tbody tr:hover td {
+  background-color: #f1f5f9;
+}
+
+#liveTable td:focus {
+  background-color: #eff6ff !important;
+  box-shadow: inset 0 0 0 2px #3b82f6;
+  border-color: #3b82f6;
+}
+
+/* Zebra striping for table */
+#liveTable tbody tr:nth-child(even) td {
+  background-color: #f8fafc;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

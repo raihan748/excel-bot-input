@@ -1,0 +1,16 @@
+{
+  "name": "bot-otonom-foto-excel",
+  "version": "1.0.0",
+  "description": "Bot Otonom Pengubah Puluhan Foto Menjadi Tabel Excel dengan Histori dan Merge File",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  },
+  "keywords": ["excel", "vision-ai", "ocr", "spreadsheet", "vercel"],
+  "author": "",
+  "license": "MIT"
+}

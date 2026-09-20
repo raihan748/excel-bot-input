@@ -1,7 +1,8 @@
 /* Tab Navigation Styles */
 .tab-active {
-  border-color: #2563eb;
-  color: #1d4ed8;
+  border-color: #059669;
+  color: #047857;
+  background-color: #f0fdf4;
 }
 
 .tab-inactive {
@@ -10,15 +11,42 @@
 }
 
 .tab-inactive:hover {
-  color: #334155;
+  color: #1e293b;
   border-color: #cbd5e1;
+  background-color: #f8fafc;
 }
 
 /* Preset Buttons */
 .active-preset {
   border-color: #059669 !important;
   background-color: #ecfdf5 !important;
-  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.25);
+  transform: translateY(-1px);
+}
+
+/* Hero Banner Glow Effects */
+.hero-gradient {
+  background: radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.15) 0%, transparent 40%),
+              radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
+              linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+}
+
+.hero-glow-badge {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+.hero-glow-badge:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+/* Gradient Text */
+.gradient-text-emerald {
+  background: linear-gradient(135deg, #34d399 0%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 /* Spreadsheet Table Styling */

@@ -76,6 +76,14 @@ const el = {
   settingModel: document.getElementById('settingModel'),
   btnSaveSettings: document.getElementById('btnSaveSettings'),
 
+  // Header & Guide
+  activeModelText: document.getElementById('activeModelText'),
+  heroHistoryCount: document.getElementById('heroHistoryCount'),
+  btnOpenGuide: document.getElementById('btnOpenGuide'),
+  btnCloseGuide: document.getElementById('btnCloseGuide'),
+  btnUnderstandGuide: document.getElementById('btnUnderstandGuide'),
+  guideModal: document.getElementById('guideModal'),
+
   // Toast
   toast: document.getElementById('toast'),
   toastMessage: document.getElementById('toastMessage')
@@ -87,8 +95,17 @@ const el = {
 function init() {
   setupEventListeners();
   updateHistoryUI();
+  updateActiveModelDisplay();
   el.settingApiKey.value = state.apiKey;
   el.settingModel.value = state.model;
+}
+
+function updateActiveModelDisplay() {
+  let name = 'Claude Sonnet 5';
+  if (state.model.includes('deepseek-v4-pro')) name = 'DeepSeek V4 Pro';
+  else if (state.model.includes('deepseek-v4.1-flash')) name = 'DeepSeek V4.1 Flash';
+  else if (state.model.includes('gpt-6-astra')) name = 'GPT-6 Astra';
+  if (el.activeModelText) el.activeModelText.textContent = name;
 }
 
 function switchTab(targetTab) {
@@ -211,9 +228,20 @@ function setupEventListeners() {
     state.model = el.settingModel.value;
     localStorage.setItem('excelbot_api_key', state.apiKey);
     localStorage.setItem('excelbot_model', state.model);
+    updateActiveModelDisplay();
     el.settingsModal.classList.add('hidden');
     showToast('Pengaturan API Key & Model berhasil disimpan!');
   });
+
+  // Modal Panduan
+  if (el.btnOpenGuide) {
+    el.btnOpenGuide.addEventListener('click', () => {
+      el.guideModal.classList.remove('hidden');
+      lucide.createIcons();
+    });
+  }
+  if (el.btnCloseGuide) el.btnCloseGuide.addEventListener('click', () => el.guideModal.classList.add('hidden'));
+  if (el.btnUnderstandGuide) el.btnUnderstandGuide.addEventListener('click', () => el.guideModal.classList.add('hidden'));
 }
 
 // ============================================================
@@ -589,6 +617,11 @@ function saveToHistory(tableData) {
 
 function updateHistoryUI() {
   const count = state.history.length;
+
+  if (el.heroHistoryCount) {
+    el.heroHistoryCount.textContent = `${count} File Tersimpan`;
+  }
+
   if (count > 0) {
     el.historyBadge.classList.remove('hidden');
     el.historyBadge.textContent = count;

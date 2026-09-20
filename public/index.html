@@ -14,54 +14,133 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
 
   <!-- Header & Navbar -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-emerald-200">
+  <header class="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm transition">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 py-3 flex items-center justify-between">
+      
+      <!-- Brand Logo & Title -->
+      <div class="flex items-center space-x-3.5">
+        <div class="w-11 h-11 bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 ring-4 ring-emerald-50">
           <i data-lucide="sheet" class="w-6 h-6"></i>
         </div>
         <div>
-          <h1 class="text-lg font-bold text-slate-900 leading-tight">ExcelBot AI</h1>
-          <p class="text-xs text-slate-500 font-medium">Pengubah Foto Dokumen ke Tabel Excel Otomatis</p>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-xl font-black tracking-tight text-slate-900 leading-tight">ExcelBot<span class="text-emerald-600">.AI</span></h1>
+            <span class="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider border border-emerald-300/60">v2.0 Pro</span>
+          </div>
+          <p class="text-xs text-slate-500 font-medium hidden sm:block">Pengubah Foto Dokumen ke Spreadsheet Excel Otomatis</p>
         </div>
       </div>
 
-      <!-- Status & Settings -->
+      <!-- Center / Right: Status, Panduan, Settings -->
       <div class="flex items-center space-x-3">
-        <div class="hidden sm:flex items-center space-x-2 bg-emerald-50 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-medium border border-emerald-200">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>AI Vision Siap</span>
+        <!-- Active Model Pill Badge -->
+        <div id="activeModelPill" class="hidden md:flex items-center space-x-2 bg-slate-900 text-slate-100 text-xs px-3.5 py-1.5 rounded-full font-medium shadow-sm border border-slate-700">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-slate-400 text-[11px]">Model:</span>
+          <span id="activeModelText" class="font-bold text-emerald-300">Claude Sonnet 5</span>
         </div>
-        <button id="btnOpenSettings" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition" title="Pengaturan API">
-          <i data-lucide="settings" class="w-5 h-5"></i>
+
+        <!-- Tombol Panduan Cepat -->
+        <button id="btnOpenGuide" class="flex items-center space-x-1.5 text-xs font-semibold text-slate-700 hover:text-emerald-700 bg-slate-100 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 px-3.5 py-1.5 rounded-xl transition shadow-sm">
+          <i data-lucide="help-circle" class="w-4 h-4 text-emerald-600"></i>
+          <span>Panduan</span>
+        </button>
+
+        <!-- Settings Button -->
+        <button id="btnOpenSettings" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 rounded-xl transition shadow-sm" title="Pengaturan API & Model">
+          <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Navigation Tabs -->
-  <div class="bg-white border-b border-slate-200">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <nav class="flex space-x-8 -mb-px" aria-label="Tabs">
-        <button id="tabBtnUpload" class="tab-active flex items-center space-x-2 py-4 px-1 border-b-2 font-semibold text-sm transition">
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Hero Dashboard Header (Tampilan Megah & Informatif) -->
+    <div class="hero-gradient rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-slate-800 mb-8 relative overflow-hidden">
+      <!-- Decorative ambient blurs -->
+      <div class="absolute -right-16 -top-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -left-16 -bottom-16 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div class="max-w-2xl space-y-3">
+          <div class="inline-flex items-center space-x-2 hero-glow-badge px-3 py-1 rounded-full text-xs text-emerald-300 font-semibold">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span>Teknologi Vision OCR Multimodal Cerdas</span>
+          </div>
+
+          <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-tight">
+            Ubah Puluhan Foto Dokumen & Nota Jadi <span class="gradient-text-emerald">Excel Otomatis</span> ⚡
+          </h2>
+
+          <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+            Tinggal tarik & lepas (drag & drop) foto nota, kwitansi, atau catatan tulisan tangan — AI otomatis membaca angka, membuat kolom rapi, rumus <code class="bg-white/10 px-1.5 py-0.5 rounded text-emerald-300 font-mono text-xs">=SUM()</code>, dan siap diunduh!
+          </p>
+
+          <!-- 3 Feature Highlight Badges -->
+          <div class="pt-2 flex flex-wrap items-center gap-2.5">
+            <div class="hero-glow-badge flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs text-slate-200">
+              <i data-lucide="layers" class="w-4 h-4 text-emerald-400"></i>
+              <span>Proses 1 - 50+ Foto Sekaligus</span>
+            </div>
+            <div class="hero-glow-badge flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs text-slate-200">
+              <i data-lucide="calculator" class="w-4 h-4 text-blue-400"></i>
+              <span>Otomatis Format Rupiah & Rumus Excel</span>
+            </div>
+            <div class="hero-glow-badge flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs text-slate-200">
+              <i data-lucide="git-merge" class="w-4 h-4 text-amber-400"></i>
+              <span>Bisa Merge Banyak File Jadi 1 Lembar</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stat Card Dashboard -->
+        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-1 gap-3 lg:w-72 flex-shrink-0">
+          <div class="bg-white/5 backdrop-blur-md border border-white/10 p-3.5 rounded-2xl flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <i data-lucide="shield-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="text-[11px] text-slate-400 font-medium">Status AI Vision</div>
+              <div class="text-sm font-bold text-white flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span class="text-emerald-300">Siap Digunakan</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white/5 backdrop-blur-md border border-white/10 p-3.5 rounded-2xl flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+              <i data-lucide="folder-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="text-[11px] text-slate-400 font-medium">File di Riwayat</div>
+              <div id="heroHistoryCount" class="text-sm font-bold text-white">0 File Tersimpan</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs Modern Pills -->
+    <div class="bg-white p-2 rounded-2xl border border-slate-200 shadow-sm mb-6">
+      <nav class="flex flex-wrap gap-2" aria-label="Tabs">
+        <button id="tabBtnUpload" class="tab-active flex-1 sm:flex-initial flex items-center justify-center space-x-2 py-3 px-5 rounded-xl font-bold text-sm transition">
           <i data-lucide="upload-cloud" class="w-5 h-5"></i>
           <span>1. Ekstrak Foto ke Excel</span>
         </button>
-        <button id="tabBtnHistory" class="tab-inactive flex items-center space-x-2 py-4 px-1 border-b-2 font-semibold text-sm transition relative">
+        <button id="tabBtnHistory" class="tab-inactive flex-1 sm:flex-initial flex items-center justify-center space-x-2 py-3 px-5 rounded-xl font-bold text-sm transition relative">
           <i data-lucide="history" class="w-5 h-5"></i>
           <span>2. Riwayat & Histori File</span>
-          <span id="historyBadge" class="hidden bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+          <span id="historyBadge" class="hidden bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full font-bold ml-1.5">0</span>
         </button>
-        <button id="tabBtnMerge" class="tab-inactive flex items-center space-x-2 py-4 px-1 border-b-2 font-semibold text-sm transition">
+        <button id="tabBtnMerge" class="tab-inactive flex-1 sm:flex-initial flex items-center justify-center space-x-2 py-3 px-5 rounded-xl font-bold text-sm transition">
           <i data-lucide="git-merge" class="w-5 h-5"></i>
           <span>3. Gabungkan File (Merge)</span>
         </button>
       </nav>
     </div>
-  </div>
-
-  <!-- Main Content Container -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
     <!-- ============================================================ -->
     <!-- TAB 1: UPLOAD & EKSTRAK FOTO -->
@@ -407,6 +486,58 @@
       <div class="pt-3 border-t border-slate-200 flex justify-end space-x-2">
         <button id="btnSaveSettings" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition">
           Simpan Pengaturan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Panduan Cepat untuk Bapak -->
+  <div id="guideModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-5">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+            <i data-lucide="book-open" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-base">Panduan Penggunaan Cepat</h3>
+            <p class="text-xs text-slate-500">3 langkah mudah menggunakan ExcelBot AI</p>
+          </div>
+        </div>
+        <button id="btnCloseGuide" class="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 text-xs sm:text-sm text-slate-600">
+        <div class="flex items-start space-x-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+          <div>
+            <span class="font-bold text-slate-800 block mb-0.5">Pilih Tipe Dokumen:</span>
+            Pilih jenis tabel yang mau dibuat: <em>Nota & Kwitansi Belanja</em>, <em>Buku Kas</em>, <em>Stok Barang</em>, atau <em>Deteksi Bebas</em>.
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+          <div>
+            <span class="font-bold text-slate-800 block mb-0.5">Upload Foto Sekaligus:</span>
+            Tarik (drag & drop) 1 sampai puluhan foto sekaligus ke kotak upload. Lalu klik tombol hijau <strong>"Mulai Proses Otomatis"</strong>.
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+          <div>
+            <span class="font-bold text-slate-800 block mb-0.5">Periksa & Download Excel:</span>
+            Tabel otomatis tersusun. Bisa diedit langsung jika ada typo, lalu klik <strong>"Unduh File Excel (.xlsx)"</strong>!
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-200 flex justify-end">
+        <button id="btnUnderstandGuide" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-md shadow-emerald-200 transition">
+          Saya Mengerti 👍
         </button>
       </div>
     </div>

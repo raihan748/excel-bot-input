@@ -3,3 +3,7 @@ node_modules/
 *.log
 .env
 .vercel
+input_foto_mobil/*
+!input_foto_mobil/.gitkeep
+hasil_excel/*
+!hasil_excel/.gitkeep

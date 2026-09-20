@@ -7,7 +7,9 @@ const state = {
   model: localStorage.getItem('excelbot_model') || 'thirty/gpt-6-astra',
   currentTableData: null,
   history: JSON.parse(localStorage.getItem('excelbot_history') || '[]'),
-  selectedHistoryIds: new Set()
+  selectedHistoryIds: new Set(),
+  groupColIdx: -1, // -1 = tanpa pengelompokan (standar), >= 0 index kolom pengelompokan
+  groupMode: 'single-sheet' // 'single-sheet' atau 'multi-sheet'
 };
 
 // DOM Elements
@@ -53,6 +55,13 @@ const el = {
   tableFoot: document.getElementById('tableFoot'),
   btnAddRowBtn: document.getElementById('btnAddRowBtn'),
   btnDownloadCurrentExcel: document.getElementById('btnDownloadCurrentExcel'),
+  btnDownloadMultiTabExcel: document.getElementById('btnDownloadMultiTabExcel'),
+
+  // Grouping Toolbar
+  groupColumnSelect: document.getElementById('groupColumnSelect'),
+  btnQuickGroupMobil: document.getElementById('btnQuickGroupMobil'),
+  btnResetGrouping: document.getElementById('btnResetGrouping'),
+  groupStatusBadge: document.getElementById('groupStatusBadge'),
 
   // History Tab
   historyEmptyState: document.getElementById('historyEmptyState'),
@@ -96,8 +105,8 @@ function init() {
   setupEventListeners();
   updateHistoryUI();
   updateActiveModelDisplay();
-  el.settingApiKey.value = state.apiKey;
-  el.settingModel.value = state.model;
+  if (el.settingApiKey) el.settingApiKey.value = state.apiKey;
+  if (el.settingModel) el.settingModel.value = state.model;
 }
 
 function updateActiveModelDisplay() {
@@ -188,11 +197,64 @@ function setupEventListeners() {
 
   // Tabel Aksi
   el.btnAddRowBtn.addEventListener('click', addNewTableRow);
+
+  // Download Standar / Terkelompok (1 Sheet)
   el.btnDownloadCurrentExcel.addEventListener('click', () => {
     if (state.currentTableData) {
-      downloadTableAsExcel(state.currentTableData);
+      downloadTableAsExcel(state.currentTableData, { groupMode: 'single-sheet' });
     }
   });
+
+  // Download Multi-Tab (Tiap Mobil/Grup Buat Sheet Sendiri)
+  if (el.btnDownloadMultiTabExcel) {
+    el.btnDownloadMultiTabExcel.addEventListener('click', () => {
+      if (state.currentTableData) {
+        downloadTableAsExcel(state.currentTableData, { groupMode: 'multi-sheet' });
+      }
+    });
+  }
+
+  // Grouping Events
+  if (el.groupColumnSelect) {
+    el.groupColumnSelect.addEventListener('change', (e) => {
+      state.groupColIdx = parseInt(e.target.value, 10);
+      if (state.currentTableData) {
+        renderLiveTable(state.currentTableData, false);
+      }
+    });
+  }
+
+  if (el.btnQuickGroupMobil) {
+    el.btnQuickGroupMobil.addEventListener('click', () => {
+      if (!state.currentTableData || !state.currentTableData.columns) return;
+      // Cari kolom mobil / kendaraan
+      let targetColIdx = state.currentTableData.columns.findIndex(c => {
+        const lower = String(c).toLowerCase();
+        return lower.includes('mobil') || lower.includes('kendaraan') || lower.includes('plat') || lower.includes('tipe');
+      });
+      // Jika tidak ketemu, cari kolom ke-1 (setelah nomor)
+      if (targetColIdx === -1 && state.currentTableData.columns.length > 1) {
+        targetColIdx = 1;
+      }
+      if (targetColIdx >= 0) {
+        state.groupColIdx = targetColIdx;
+        el.groupColumnSelect.value = targetColIdx;
+        renderLiveTable(state.currentTableData, false);
+        showToast(`Data berhasil dikelompokkan per ${state.currentTableData.columns[targetColIdx]} 🚗`);
+      }
+    });
+  }
+
+  if (el.btnResetGrouping) {
+    el.btnResetGrouping.addEventListener('click', () => {
+      state.groupColIdx = -1;
+      el.groupColumnSelect.value = -1;
+      if (state.currentTableData) {
+        renderLiveTable(state.currentTableData, false);
+        showToast('Pengelompokan di-reset ke tampilan standar');
+      }
+    });
+  }
 
   // Riwayat File
   el.selectAllHistoryCheckbox.addEventListener('change', (e) => {
@@ -389,9 +451,13 @@ async function startBatchProcessing() {
     }
   }
 
-  // Jika kolom belum terisi (karena error semua), buat default
+  // Jika kolom belum terisi, buat default
   if (!combinedColumns) {
-    combinedColumns = ['No', 'Uraian Barang', 'Jumlah', 'Harga Satuan', 'Total'];
+    if (state.selectedPreset === 'mobil') {
+      combinedColumns = ['No', 'Mobil / Kendaraan', 'Plat Nomor', 'Driver / Uraian', 'Biaya / Tarif', 'Total'];
+    } else {
+      combinedColumns = ['No', 'Uraian Barang', 'Jumlah', 'Harga Satuan', 'Total'];
+    }
   }
 
   // Normalisasi nomor urut di kolom pertama jika berupa angka
@@ -419,6 +485,14 @@ async function startBatchProcessing() {
     photoCount: total
   };
 
+  // Cek jika preset mobil, otomatis aktifkan kelompokkan mobil
+  if (state.selectedPreset === 'mobil') {
+    const mobilCol = combinedColumns.findIndex(c => String(c).toLowerCase().includes('mobil'));
+    state.groupColIdx = mobilCol >= 0 ? mobilCol : 1;
+  } else {
+    state.groupColIdx = -1;
+  }
+
   // Simpan ke Histori
   saveToHistory(state.currentTableData);
 
@@ -432,15 +506,15 @@ async function startBatchProcessing() {
 }
 
 // ============================================================
-// 5. Live In-Browser Spreadsheet Editor
+// 5. Live In-Browser Spreadsheet Editor & Grouping Engine
 // ============================================================
-function renderLiveTable(tableData) {
+function renderLiveTable(tableData, resetGroupOptions = true) {
   el.resultSection.classList.remove('hidden');
   el.resultDocTitle.textContent = tableData.document_title;
   el.resultDocType.textContent = tableData.document_type;
   el.resultDocMeta.textContent = `Tanggal: ${tableData.date} | Total ${tableData.rows.length} Baris Data | Diproses dari ${tableData.photoCount || 1} Foto`;
 
-  // Render Header
+  // Render Header Kolom
   el.tableHead.innerHTML = `
     <tr>
       ${tableData.columns.map(c => `<th>${escapeHtml(c)}</th>`).join('')}
@@ -448,56 +522,173 @@ function renderLiveTable(tableData) {
     </tr>
   `;
 
-  // Render Body
-  renderTableRows(tableData);
+  // Update Grouping Toolbar Dropdown
+  if (resetGroupOptions && el.groupColumnSelect) {
+    el.groupColumnSelect.innerHTML = '<option value="-1">-- Tanpa Pengelompokan (Standar) --</option>';
+    tableData.columns.forEach((col, idx) => {
+      // Abaikan kolom nomor urut sebagai grouping key
+      if (idx === 0 && String(col).toLowerCase().includes('no')) return;
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = `Kolom: ${col}`;
+      if (idx === state.groupColIdx) opt.selected = true;
+      el.groupColumnSelect.appendChild(opt);
+    });
+  }
 
-  // Render Foot (Total)
+  // Tampilkan / Sembunyikan Shortcut Tombol Mobil
+  const hasMobilCol = tableData.columns.some(c => {
+    const l = String(c).toLowerCase();
+    return l.includes('mobil') || l.includes('kendaraan') || l.includes('plat');
+  });
+  if (el.btnQuickGroupMobil) {
+    if (hasMobilCol || state.selectedPreset === 'mobil') {
+      el.btnQuickGroupMobil.classList.remove('hidden');
+    } else {
+      el.btnQuickGroupMobil.classList.add('hidden');
+    }
+  }
+
+  // Update status badge dan tombol download
+  const isGrouped = state.groupColIdx >= 0;
+  if (isGrouped) {
+    if (el.groupStatusBadge) el.groupStatusBadge.classList.remove('hidden');
+    if (el.btnResetGrouping) el.btnResetGrouping.classList.remove('hidden');
+    if (el.btnDownloadMultiTabExcel) el.btnDownloadMultiTabExcel.classList.remove('hidden');
+    el.btnDownloadCurrentExcel.innerHTML = `
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+      <span>Unduh Excel Terkelompok (.xlsx)</span>
+    `;
+  } else {
+    if (el.groupStatusBadge) el.groupStatusBadge.classList.add('hidden');
+    if (el.btnResetGrouping) el.btnResetGrouping.classList.add('hidden');
+    if (el.btnDownloadMultiTabExcel) el.btnDownloadMultiTabExcel.classList.add('hidden');
+    el.btnDownloadCurrentExcel.innerHTML = `
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+      <span>Unduh File Excel (.xlsx)</span>
+    `;
+  }
+
+  // Render Body & Footer
+  renderTableRows(tableData);
   renderTableFooter(tableData);
 
-  // Scroll ke tabel
-  el.resultSection.scrollIntoView({ behavior: 'smooth' });
+  lucide.createIcons();
 }
 
 function renderTableRows(tableData) {
   el.tableBody.innerHTML = '';
-  tableData.rows.forEach((row, rIdx) => {
-    const tr = document.createElement('tr');
-    tr.className = 'hover:bg-slate-50 transition';
+  const isGrouped = state.groupColIdx >= 0 && state.groupColIdx < tableData.columns.length;
 
-    let rowHtml = '';
-    tableData.columns.forEach((col, cIdx) => {
-      let cellVal = row[cIdx] !== undefined ? row[cIdx] : '';
-      let displayVal = cellVal;
-
-      // Format tampilan uang jika angka besar
-      if (typeof cellVal === 'number' && cellVal >= 1000) {
-        displayVal = formatRupiah(cellVal);
+  if (!isGrouped) {
+    // Mode Standar (Tanpa Grup)
+    tableData.rows.forEach((row, rIdx) => {
+      el.tableBody.appendChild(createTableRowElement(row, rIdx, tableData.columns));
+    });
+  } else {
+    // Mode Terkelompok (Grouped by Column, e.g. Mobil)
+    const groupsMap = new Map();
+    tableData.rows.forEach((row, rIdx) => {
+      const rawVal = row[state.groupColIdx];
+      const key = (rawVal !== null && rawVal !== undefined && String(rawVal).trim() !== '')
+        ? String(rawVal).trim()
+        : 'Lainnya / Tanpa Kategori';
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, []);
       }
-
-      rowHtml += `
-        <td
-          contenteditable="true"
-          data-row="${rIdx}"
-          data-col="${cIdx}"
-          class="editable-cell text-slate-700"
-        >${escapeHtml(String(displayVal))}</td>
-      `;
+      groupsMap.get(key).push({ row, originalIndex: rIdx });
     });
 
-    // Tombol hapus baris
-    rowHtml += `
-      <td class="text-center p-1">
-        <button type="button" onclick="deleteTableRow(${rIdx})" class="text-slate-400 hover:text-rose-600 p-1 rounded hover:bg-rose-50 transition" title="Hapus baris ini">
-          <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-        </button>
-      </td>
-    `;
+    const lastColIdx = tableData.columns.length - 1;
 
-    tr.innerHTML = rowHtml;
-    el.tableBody.appendChild(tr);
-  });
+    for (const [groupName, items] of groupsMap.entries()) {
+      // 1. Group Header Row
+      const headerTr = document.createElement('tr');
+      headerTr.className = 'group-header-row';
+      headerTr.innerHTML = `
+        <td colspan="${tableData.columns.length + 1}">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="text-base">🚗</span>
+              <span class="font-bold text-slate-900 tracking-wide">KELOMPOK [ ${escapeHtml(groupName.toUpperCase())} ]</span>
+            </div>
+            <span class="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">
+              ${items.length} Data
+            </span>
+          </div>
+        </td>
+      `;
+      el.tableBody.appendChild(headerTr);
+
+      // 2. Data Rows in Group
+      let groupSubtotal = 0;
+      items.forEach(({ row, originalIndex }) => {
+        el.tableBody.appendChild(createTableRowElement(row, originalIndex, tableData.columns));
+        
+        // Hitung subtotal dari kolom nominal/terakhir
+        const val = row[lastColIdx];
+        const num = typeof val === 'number' ? val : Number(String(val || '').replace(/[^0-9\-]/g, ''));
+        if (!isNaN(num)) groupSubtotal += num;
+      });
+
+      // 3. Group Subtotal Row
+      const subTr = document.createElement('tr');
+      subTr.className = 'group-subtotal-row';
+      subTr.innerHTML = `
+        <td colspan="${Math.max(tableData.columns.length - 1, 1)}" class="text-right text-xs uppercase tracking-wider font-bold">
+          SUBTOTAL ${escapeHtml(groupName.toUpperCase())}:
+        </td>
+        <td class="text-right font-black text-blue-800 text-sm">
+          ${formatRupiah(groupSubtotal)}
+        </td>
+        <td class="bg-blue-50/50"></td>
+      `;
+      el.tableBody.appendChild(subTr);
+    }
+  }
 
   // Attach event listener untuk inline editing
+  attachCellEditListeners();
+}
+
+function createTableRowElement(row, rIdx, columns) {
+  const tr = document.createElement('tr');
+  tr.className = 'hover:bg-slate-50 transition';
+
+  let rowHtml = '';
+  columns.forEach((col, cIdx) => {
+    let cellVal = row[cIdx] !== undefined ? row[cIdx] : '';
+    let displayVal = cellVal;
+
+    // Format tampilan uang jika angka besar
+    if (typeof cellVal === 'number' && cellVal >= 1000) {
+      displayVal = formatRupiah(cellVal);
+    }
+
+    rowHtml += `
+      <td
+        contenteditable="true"
+        data-row="${rIdx}"
+        data-col="${cIdx}"
+        class="editable-cell text-slate-700"
+      >${escapeHtml(String(displayVal))}</td>
+    `;
+  });
+
+  // Tombol hapus baris
+  rowHtml += `
+    <td class="text-center p-1">
+      <button type="button" onclick="deleteTableRow(${rIdx})" class="text-slate-400 hover:text-rose-600 p-1 rounded hover:bg-rose-50 transition" title="Hapus baris ini">
+        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+      </button>
+    </td>
+  `;
+
+  tr.innerHTML = rowHtml;
+  return tr;
+}
+
+function attachCellEditListeners() {
   el.tableBody.querySelectorAll('.editable-cell').forEach(cell => {
     cell.addEventListener('blur', (e) => {
       const r = parseInt(e.target.getAttribute('data-row'));
@@ -524,7 +715,7 @@ function renderTableFooter(tableData) {
   el.tableFoot.innerHTML = `
     <tr>
       <td colspan="${Math.max(colCount - 1, 1)}" class="text-right p-3 font-bold text-slate-800 bg-slate-100">
-        TOTAL KESELURUHAN:
+        TOTAL KESELURUHAN (GRAND TOTAL):
       </td>
       <td class="p-3 text-right font-black text-emerald-700 bg-emerald-50 text-base">
         ${formatRupiah(tableData.total || 0)}
@@ -549,66 +740,149 @@ function addNewTableRow() {
     return '';
   });
   state.currentTableData.rows.push(newRow);
-  renderTableRows(state.currentTableData);
+  renderLiveTable(state.currentTableData, false);
   updateCurrentTableTotal();
 }
 
 window.deleteTableRow = function(rIdx) {
   if (!state.currentTableData) return;
   state.currentTableData.rows.splice(rIdx, 1);
-  // Re-index nomor urut
   state.currentTableData.rows.forEach((r, idx) => {
     if (typeof r[0] === 'number') r[0] = idx + 1;
   });
-  renderTableRows(state.currentTableData);
+  renderLiveTable(state.currentTableData, false);
   updateCurrentTableTotal();
 };
 
 // ============================================================
-// 6. Download Excel (.xlsx)
+// 6. Download Excel (.xlsx) Anti-Gagal (Backend + Client-Side Fallback)
 // ============================================================
-async function downloadTableAsExcel(tableData) {
-  try {
-    showToast('Sedang membuat file Excel (.xlsx)...');
-    const filename = `${tableData.document_title || 'Rekap'}_${tableData.date || 'data'}.xlsx`;
+async function downloadTableAsExcel(tableData, options = {}) {
+  const isGrouped = state.groupColIdx >= 0;
+  const groupMode = options.groupMode || 'single-sheet';
+  
+  // Bersihkan nama file agar aman dari karakter terlarang di Windows
+  const rawTitle = tableData.document_title || 'Rekap';
+  const cleanTitle = rawTitle.replace(/[/\\?%*:|"<>]/g, '_').trim();
+  const dateStr = (tableData.date || 'data').replace(/[/\\?%*:|"<>]/g, '_').trim();
+  const modeSuffix = groupMode === 'multi-sheet' ? '_MultiTab_PerMobil' : (isGrouped ? '_Terkelompok' : '');
+  const safeFilename = `${cleanTitle}_${dateStr}${modeSuffix}.xlsx`;
 
+  showToast('Sedang membuat file Excel (.xlsx)...');
+
+  // Coba 1: Request ke Backend /api/export-excel
+  try {
     const res = await fetch('/api/export-excel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         tableData: tableData,
-        filename: filename
+        filename: safeFilename,
+        isGrouped: isGrouped,
+        groupColIdx: state.groupColIdx,
+        groupMode: groupMode
       })
     });
 
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.error || 'Gagal mengunduh file Excel');
+    if (res.ok) {
+      const blob = await res.blob();
+      triggerDownload(blob, safeFilename);
+      showToast('File Excel berhasil diunduh ke komputer!');
+      return;
+    }
+  } catch (backendErr) {
+    console.warn('[EXCEL] Backend export gagal, beralih ke generator browser...', backendErr);
+  }
+
+  // Coba 2: Fallback Generator Langsung di Browser (Client-Side ExcelJS)
+  try {
+    showToast('Mengunduh langsung via generator internal browser...', 'info');
+    await exportExcelClientSide(tableData, safeFilename, isGrouped, state.groupColIdx, groupMode);
+    showToast('File Excel berhasil diunduh ke komputer!');
+  } catch (clientErr) {
+    console.error('[EXCEL FATAL]', clientErr);
+    showToast('Gagal mengunduh file Excel: ' + clientErr.message, 'error');
+  }
+}
+
+/**
+ * Generator Excel mandiri langsung di browser (Client-Side Fallback jika server terputus)
+ */
+async function exportExcelClientSide(tableData, filename, isGrouped, groupColIdx, groupMode) {
+  if (!window.ExcelJS) {
+    throw new Error('Library ExcelJS belum termuat. Periksa koneksi internet Anda.');
+  }
+
+  const workbook = new window.ExcelJS.Workbook();
+  workbook.creator = 'ExcelBot AI Browser';
+  workbook.created = new Date();
+
+  const columns = Array.isArray(tableData.columns) ? tableData.columns : [];
+  const rows = Array.isArray(tableData.rows) ? tableData.rows : [];
+
+  if (isGrouped && groupMode === 'multi-sheet') {
+    // Mode Multi-Tab: Tiap mobil dibuatkan Sheet tersendiri
+    const groupsMap = new Map();
+    rows.forEach(r => {
+      const rawVal = r[groupColIdx];
+      const key = (rawVal !== null && rawVal !== undefined && String(rawVal).trim() !== '') ? String(rawVal).trim() : 'Lainnya';
+      if (!groupsMap.has(key)) groupsMap.set(key, []);
+      groupsMap.get(key).push(r);
+    });
+
+    // Tab Ringkasan
+    const summaryWs = workbook.addWorksheet('RINGKASAN MOBIL');
+    summaryWs.addRow(['No', 'Nama Kelompok / Mobil', 'Jumlah Data', 'Total Biaya / Saldo']);
+    let no = 1;
+    for (const [gName, gRows] of groupsMap.entries()) {
+      let gSum = 0;
+      gRows.forEach(r => {
+        const val = r[r.length - 1];
+        const num = typeof val === 'number' ? val : Number(String(val || '').replace(/[^0-9\-]/g, ''));
+        if (!isNaN(num)) gSum += num;
+      });
+      summaryWs.addRow([no++, gName, `${gRows.length} data`, gSum]);
     }
 
-    const blob = await res.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
+    // Tab Masing-Masing Mobil
+    let tabCount = 1;
+    for (const [gName, gRows] of groupsMap.entries()) {
+      const cleanTab = gName.replace(/[\\/*?:[\]]/g, '').slice(0, 25);
+      const ws = workbook.addWorksheet(`${tabCount++}. ${cleanTab}`.slice(0, 31));
+      ws.addRow(columns);
+      gRows.forEach(r => ws.addRow(r));
+    }
+  } else {
+    // Mode Standar / Single-Sheet
+    const ws = workbook.addWorksheet('Data Rekap');
+    ws.addRow(columns);
+    rows.forEach(r => ws.addRow(r));
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  triggerDownload(blob, filename);
+}
+
+function triggerDownload(blob, filename) {
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = downloadUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(downloadUrl);
-
-    showToast('File Excel berhasil diunduh ke komputer!');
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
+  }, 1500);
 }
 
 // ============================================================
 // 7. Riwayat & Histori File (localStorage)
 // ============================================================
 function saveToHistory(tableData) {
-  // Tambahkan item baru ke urutan paling depan
   state.history.unshift(tableData);
-  // Batasi maksimal 50 history agar localStorage tidak penuh
   if (state.history.length > 50) {
     state.history = state.history.slice(0, 50);
   }
@@ -702,6 +976,7 @@ window.loadHistoryItem = function(id) {
   const found = state.history.find(h => h.id === id);
   if (found) {
     state.currentTableData = JSON.parse(JSON.stringify(found));
+    state.groupColIdx = -1;
     switchTab('upload');
     renderLiveTable(state.currentTableData);
     showToast(`Dokumen "${found.document_title}" dimuat ke tabel`);
@@ -780,6 +1055,7 @@ async function executeMerge() {
 
   const mergeMode = document.querySelector('input[name="mergeMode"]:checked').value;
   const masterTitle = el.mergeTitleInput.value.trim() || 'MASTER REKAP GABUNGAN EXCEL';
+  const cleanFilename = `${masterTitle.replace(/[/\\?%*:|"<>]/g, '_')}.xlsx`;
 
   try {
     showToast('Sedang menggabungkan file Excel master...');
@@ -792,7 +1068,7 @@ async function executeMerge() {
         datasets: selectedDatasets,
         mode: mergeMode,
         title: masterTitle,
-        filename: `${masterTitle.replace(/[^a-zA-Z0-9_\-]/g, '_')}.xlsx`
+        filename: cleanFilename
       })
     });
 
@@ -802,14 +1078,7 @@ async function executeMerge() {
     }
 
     const blob = await res.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = `${masterTitle.replace(/[^a-zA-Z0-9_\-]/g, '_')}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(downloadUrl);
+    triggerDownload(blob, cleanFilename);
 
     showToast('File Master Gabungan berhasil diunduh!');
   } catch (err) {
@@ -853,6 +1122,7 @@ function formatBytes(bytes) {
 function getPresetLabel(preset) {
   switch (preset) {
     case 'nota': return 'Nota Belanja';
+    case 'mobil': return 'Data Mobil & Armada';
     case 'kas': return 'Buku Kas';
     case 'stok': return 'Stok Barang';
     case 'absensi': return 'Absensi';

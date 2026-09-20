@@ -153,12 +153,19 @@
           <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i>
           <span>Pilih Tipe Dokumen / Format yang Mau Dibuat:</span>
         </label>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <button type="button" data-preset="nota" class="preset-btn active-preset p-3 rounded-xl border text-left flex flex-col justify-between transition">
             <span class="text-2xl mb-1">🛒</span>
             <div>
               <div class="font-bold text-sm text-slate-800">Nota & Kwitansi</div>
               <div class="text-xs text-slate-500">Barang, Qty, Harga, Total</div>
+            </div>
+          </button>
+          <button type="button" data-preset="mobil" class="preset-btn p-3 rounded-xl border border-slate-200 text-left flex flex-col justify-between hover:bg-slate-50 transition">
+            <span class="text-2xl mb-1">🚗</span>
+            <div>
+              <div class="font-bold text-sm text-slate-800">Data Mobil</div>
+              <div class="text-xs text-slate-500">Mobil, Plat, Driver, Biaya</div>
             </div>
           </button>
           <button type="button" data-preset="kas" class="preset-btn p-3 rounded-xl border border-slate-200 text-left flex flex-col justify-between hover:bg-slate-50 transition">
@@ -288,9 +295,57 @@
                 <i data-lucide="plus" class="w-4 h-4"></i>
                 <span>Tambah Baris</span>
               </button>
-              <button id="btnDownloadCurrentExcel" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-md shadow-emerald-200 transition flex items-center space-x-2">
+              
+              <!-- Tombol Download Standar -->
+              <button id="btnDownloadCurrentExcel" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-4 py-2.5 rounded-xl shadow-md shadow-emerald-200 transition flex items-center space-x-2">
                 <i data-lucide="download" class="w-4 h-4"></i>
                 <span>Unduh File Excel (.xlsx)</span>
+              </button>
+
+              <!-- Tombol Khusus Download Multi-Tab per Mobil/Grup (Tampil saat dikelompokkan) -->
+              <button id="btnDownloadMultiTabExcel" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-md shadow-indigo-200 transition flex items-center space-x-1.5" title="Tiap mobil/grup akan dibuatkan Tab Sheet tersendiri di file Excel">
+                <i data-lucide="files" class="w-4 h-4"></i>
+                <span>Unduh Multi-Sheet per Mobil</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Bar Pengelompokan Data (Grouping Toolbar) -->
+          <div class="mt-4 p-3.5 bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 rounded-2xl border border-blue-200 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+            <div class="flex items-center space-x-3">
+              <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-200">
+                <i data-lucide="folder-tree" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="flex items-center space-x-2">
+                  <span class="text-xs font-bold text-slate-800">Fitur Pengelompokan Data (Group By):</span>
+                  <span id="groupStatusBadge" class="hidden bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">Aktif</span>
+                </div>
+                <p class="text-[11px] text-slate-500">Kelompokkan baris mobil/kategori dengan subtotal otomatis & ekspor multi-tab</p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <!-- Dropdown Pilih Kolom Kelompok -->
+              <div class="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-xl border border-slate-300 shadow-sm text-xs">
+                <label for="groupColumnSelect" class="font-bold text-slate-700 flex items-center space-x-1">
+                  <i data-lucide="layers" class="w-3.5 h-3.5 text-blue-600"></i>
+                  <span>Grup per:</span>
+                </label>
+                <select id="groupColumnSelect" class="bg-transparent font-bold text-blue-700 outline-none cursor-pointer pr-2">
+                  <option value="-1">-- Tanpa Pengelompokan --</option>
+                </select>
+              </div>
+
+              <!-- Shortcut Cepat Kelompokkan Mobil -->
+              <button id="btnQuickGroupMobil" type="button" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center space-x-1.5 shadow-sm">
+                <span>🚗 Kelompokkan Mobil</span>
+              </button>
+
+              <!-- Tombol Reset Kelompok -->
+              <button id="btnResetGrouping" type="button" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-xl transition flex items-center space-x-1">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                <span>Reset</span>
               </button>
             </div>
           </div>
@@ -548,6 +603,9 @@
     <i id="toastIcon" data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
     <span id="toastMessage">Pemberitahuan</span>
   </div>
+
+  <!-- Client-side ExcelJS Library (Anti-Fail Fallback) -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- App JavaScript Logic -->
   <script src="app.js"></script>

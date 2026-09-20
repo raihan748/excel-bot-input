@@ -16,18 +16,30 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { tableData, filename = 'tabel_hasil_ai.xlsx' } = req.body || {};
+    const {
+      tableData,
+      filename = 'tabel_hasil_ai.xlsx',
+      isGrouped = false,
+      groupColIdx = 1,
+      groupMode = 'single-sheet'
+    } = req.body || {};
 
     if (!tableData || !tableData.columns) {
       return res.status(400).json({ error: 'Data tabel tidak valid atau kosong.' });
     }
 
-    const excelBuffer = await generateSingleWorkbook(tableData);
+    const excelBuffer = await generateSingleWorkbook(tableData, {
+      isGrouped: isGrouped || tableData.isGrouped,
+      groupColIdx: groupColIdx,
+      groupMode: groupMode
+    });
 
-    const safeFilename = encodeURIComponent(filename.replace(/[^a-zA-Z0-9_\-.]/g, '_'));
+    // Bersihkan nama file agar tidak ada karakter ilegal di Windows/URL
+    const safeFilename = filename.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'rekap_excel.xlsx';
+    const encodedName = encodeURIComponent(safeFilename);
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodedName}`);
     res.setHeader('Content-Length', excelBuffer.length);
 
     return res.status(200).send(excelBuffer);

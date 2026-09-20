@@ -97,3 +97,23 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Grouping Table Rows */
+.group-header-row td {
+  background-color: #f1f5f9 !important;
+  color: #0f172a;
+  font-weight: 700;
+  border-top: 2px solid #94a3b8 !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  padding: 10px 14px !important;
+}
+
+.group-subtotal-row td {
+  background-color: #eff6ff !important;
+  color: #1e40af;
+  font-weight: 700;
+  border-top: 1px solid #bfdbfe !important;
+  border-bottom: 2px solid #60a5fa !important;
+  padding: 8px 14px !important;
+}
+

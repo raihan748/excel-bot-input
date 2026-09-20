@@ -155,6 +155,11 @@ Prioritaskan kolom: ["No", "Kode Barang", "Nama Barang", "Satuan", "Stok Awal", 
         presetInstruction = `Dokumen ini adalah DAFTAR ABSENSI / DAFTAR NAMA / PESERTA.
 Prioritaskan kolom: ["No", "Nama Lengkap", "Jabatan/Bagian", "Status Kehadiran", "Keterangan"].`;
         break;
+      case 'mobil':
+        presetInstruction = `Dokumen ini adalah DATA ARMADA MOBIL / KENDARAAN / RENTAL / SERVIS & BENGKEL MOBIL.
+Prioritaskan kolom: ["No", "Mobil / Kendaraan", "Plat Nomor", "Penyewa / Driver / Uraian", "Biaya / Tarif", "Total / Status"].
+Pastikan nama atau merk/tipe mobil (misal Avanza, Xenia, Innova, Hiace, Brio, Pajero, dsb) ditulis konsisten agar mudah dikelompokkan.`;
+        break;
       default:
         presetInstruction = `Deteksi dan baca seluruh tabel, daftar, kolom, atau tulisan terstruktur yang ada di foto. Buat judul kolom yang paling masuk akal dan relevan sesuai isi dokumen.`;
     }

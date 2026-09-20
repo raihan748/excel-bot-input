@@ -1,8 +1,91 @@
 const https = require('https');
 
 const DEFAULT_API_KEY = process.env.API_KEY || 'sk-ts-VB0BNV245K445QF7ZCRVCN6B7ADS';
-const DEFAULT_MODEL = process.env.AI_MODEL || 'thirty/claude-sonnet-5';
+const DEFAULT_MODEL = process.env.AI_MODEL || 'thirty/gpt-6-astra';
 const DEFAULT_ENDPOINT = 'https://api.thirtystore.com/v1/chat/completions';
+
+// Daftar model vision cadangan jika model utama sedang sibuk / 502
+const FALLBACK_MODELS = [
+  'thirty/gpt-6-astra',
+  'thirty/deepseek-v4-pro',
+  'thirty/deepseek-v4.1-flash'
+];
+
+function callSingleModel(targetModel, systemPrompt, mimeType, cleanBase64, apiKey) {
+  const payload = JSON.stringify({
+    model: targetModel,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: systemPrompt },
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:${mimeType};base64,${cleanBase64}`
+            }
+          }
+        ]
+      }
+    ],
+    temperature: 0.1,
+    max_tokens: 2500
+  });
+
+  return new Promise((resolve, reject) => {
+    const reqAi = https.request(DEFAULT_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'User-Agent': 'Mozilla/5.0'
+      },
+      timeout: 35000
+    }, (resp) => {
+      let raw = '';
+      resp.on('data', chunk => raw += chunk);
+      resp.on('end', () => {
+        if (resp.statusCode >= 200 && resp.statusCode < 300) {
+          try {
+            const parsed = JSON.parse(raw);
+            const content = parsed.choices?.[0]?.message?.content;
+            if (!content) {
+              return reject(new Error('Respon AI kosong atau tidak memiliki pilihan teks.'));
+            }
+            // Jika model mengembalikan pesan bahwa tidak dukung/bisa lihat gambar, picu fallback
+            const lowerContent = content.toLowerCase();
+            if (
+              lowerContent.includes('tidak dukung') ||
+              lowerContent.includes('gak dukung') ||
+              lowerContent.includes('tidak bisa') ||
+              lowerContent.includes('gak bisa') ||
+              lowerContent.includes('gagal terkirim') ||
+              lowerContent.includes('image omitted') ||
+              lowerContent.includes('tidak memiliki kemampuan untuk melihat') ||
+              lowerContent.includes('cannot view or analyze images')
+            ) {
+              return reject(new Error(`Model ${targetModel} menolak/tidak membaca gambar: ${content.slice(0, 100)}`));
+            }
+            resolve(content);
+          } catch (e) {
+            reject(new Error('Gagal parse respon API: ' + e.message));
+          }
+        } else {
+          reject(new Error(`API Error HTTP ${resp.statusCode}: ${raw.slice(0, 150)}`));
+        }
+      });
+    });
+
+    reqAi.on('timeout', () => {
+      reqAi.destroy();
+      reject(new Error(`Timeout 35 detik pada model ${targetModel}`));
+    });
+
+    reqAi.on('error', (e) => reject(e));
+    reqAi.write(payload);
+    reqAi.end();
+  });
+}
 
 module.exports = async function handler(req, res) {
   // Set CORS headers
@@ -22,7 +105,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const {
-      image, // base64 string (dengan atau tanpa prefix data:image/...)
+      image,
       preset = 'auto',
       extraPrompt = '',
       apiKey = DEFAULT_API_KEY,
@@ -40,10 +123,17 @@ module.exports = async function handler(req, res) {
       const parts = image.split(',');
       const mimeMatch = parts[0].match(/:(.*?);/);
       if (mimeMatch) mimeType = mimeMatch[1];
-      cleanBase64 = parts[1];
+      cleanBase64 = parts[1] || parts[0];
+    }
+    // Hapus seluruh spasi dan karakter newline yang bisa merusak payload JSON
+    cleanBase64 = cleanBase64.replace(/\s+/g, '');
+
+    // Deteksi otomatis jika gambar berformat PNG
+    if (cleanBase64.startsWith('iVBORw0KGgo')) {
+      mimeType = 'image/png';
     }
 
-    // Susun instruksi khusus sesuai Preset Dokumen yang dipilih bapak
+    // Susun instruksi khusus sesuai Preset Dokumen
     let presetInstruction = '';
     switch (preset) {
       case 'nota':
@@ -91,66 +181,27 @@ Kembalikan HANYA string JSON valid (tanpa teks penjelasan pembuka/penutup) denga
   "total": total_angka_kumulatif_jika_ada_atau_0
 }`;
 
-    const payload = JSON.stringify({
-      model: model || DEFAULT_MODEL,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: systemPrompt },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:${mimeType};base64,${cleanBase64}`
-              }
-            }
-          ]
-        }
-      ],
-      temperature: 0.1,
-      max_tokens: 2500
-    });
+    // Susun antrian model: utamakan model pilihan user, lalu cadangan jika 502
+    const modelsQueue = [model, ...FALLBACK_MODELS.filter(m => m !== model)];
 
-    // Panggil API thirtystore
-    const aiResponse = await new Promise((resolve, reject) => {
-      const reqAi = https.request(DEFAULT_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'User-Agent': 'Mozilla/5.0'
-        },
-        timeout: 50000
-      }, (resp) => {
-        let raw = '';
-        resp.on('data', chunk => raw += chunk);
-        resp.on('end', () => {
-          if (resp.statusCode >= 200 && resp.statusCode < 300) {
-            try {
-              const parsed = JSON.parse(raw);
-              const content = parsed.choices?.[0]?.message?.content;
-              if (!content) {
-                return reject(new Error('Respon AI kosong atau tidak memiliki pilihan teks.'));
-              }
-              resolve(content);
-            } catch (e) {
-              reject(new Error('Gagal parse respon API: ' + e.message + ' | Body: ' + raw.slice(0, 150)));
-            }
-          } else {
-            reject(new Error(`API Error HTTP ${resp.statusCode}: ${raw.slice(0, 200)}`));
-          }
-        });
-      });
+    let aiResponse = null;
+    let modelSuccess = model;
+    let lastError = null;
 
-      reqAi.on('timeout', () => {
-        reqAi.destroy();
-        reject(new Error('Timeout: AI memerlukan waktu lebih dari 50 detik untuk memproses gambar ini.'));
-      });
+    for (const currentModel of modelsQueue) {
+      try {
+        aiResponse = await callSingleModel(currentModel, systemPrompt, mimeType, cleanBase64, apiKey);
+        modelSuccess = currentModel;
+        break; // Berhasil, keluar dari loop
+      } catch (err) {
+        console.warn(`[AI WARN] Model ${currentModel} gagal: ${err.message}. Mencoba model cadangan...`);
+        lastError = err;
+      }
+    }
 
-      reqAi.on('error', (e) => reject(e));
-      reqAi.write(payload);
-      reqAi.end();
-    });
+    if (!aiResponse) {
+      throw lastError || new Error('Gagal menghubungi AI Vision pada seluruh model.');
+    }
 
     // Ekstrak JSON dari teks balasan AI
     let jsonStr = aiResponse.trim();
@@ -169,7 +220,6 @@ Kembalikan HANYA string JSON valid (tanpa teks penjelasan pembuka/penutup) denga
     try {
       parsedTableData = JSON.parse(jsonStr);
     } catch (parseErr) {
-      // Fallback jika JSON sedikit rusak: coba perbaiki format sederhana
       return res.status(422).json({
         error: 'AI memberikan output yang tidak dapat di-parse sebagai JSON valid.',
         raw: aiResponse
@@ -186,6 +236,7 @@ Kembalikan HANYA string JSON valid (tanpa teks penjelasan pembuka/penutup) denga
 
     return res.status(200).json({
       success: true,
+      modelUsed: modelSuccess,
       data: parsedTableData
     });
 

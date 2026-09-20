@@ -4,7 +4,7 @@ const state = {
   selectedPreset: 'nota',
   extraPrompt: '',
   apiKey: localStorage.getItem('excelbot_api_key') || 'sk-ts-VB0BNV245K445QF7ZCRVCN6B7ADS',
-  model: localStorage.getItem('excelbot_model') || 'thirty/claude-sonnet-5',
+  model: localStorage.getItem('excelbot_model') || 'thirty/gpt-6-astra',
   currentTableData: null,
   history: JSON.parse(localStorage.getItem('excelbot_history') || '[]'),
   selectedHistoryIds: new Set()
@@ -101,9 +101,10 @@ function init() {
 }
 
 function updateActiveModelDisplay() {
-  let name = 'Claude Sonnet 5';
+  let name = 'GPT-6 Astra';
   if (state.model.includes('deepseek-v4-pro')) name = 'DeepSeek V4 Pro';
   else if (state.model.includes('deepseek-v4.1-flash')) name = 'DeepSeek V4.1 Flash';
+  else if (state.model.includes('claude-sonnet-5')) name = 'Claude Sonnet 5';
   else if (state.model.includes('gpt-6-astra')) name = 'GPT-6 Astra';
   if (el.activeModelText) el.activeModelText.textContent = name;
 }
